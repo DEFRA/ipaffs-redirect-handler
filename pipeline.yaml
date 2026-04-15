@@ -1,0 +1,60 @@
+trigger:
+  branches:
+    include:
+      - '*'
+
+pr:
+  branches:
+    exclude:
+      - '*'
+pool:
+  name: 'DEFRA-COMMON-UBUNTU-SSV5'
+
+resources:
+  repositories:
+    - repository: ipaffs-infra
+      type: github
+      endpoint: DEFRA
+      name: DEFRA/ipaffs-infra
+      ref: refs/heads/main
+
+parameters:
+  - name: environmentName
+    displayName: Environment
+    type: string
+    values:
+      - DEV
+      - TST
+      - PRE
+      - PRD
+    default: DEV
+
+variables:
+  - group: "${{ parameters.environmentName }}"
+  - name: serviceName
+    value: redirect-handler
+  - name: nodeVersion
+    value: 24.13.1
+  - name: dockerFile
+    value: service/Dockerfile
+
+stages:
+  - stage: BuildService
+    displayName: Build Service
+    jobs:
+      - template: /pipelines/jobs/build-node-project.yaml@ipaffs-infra
+        parameters:
+          nodeVersion: "${{ parameters.nodeVersion }}"
+
+  - stage: PackageService
+    displayName: Package Service Image
+    dependsOn:
+      - BuildService
+    jobs:
+      - template: /pipelines/jobs/package-node-project.yaml@ipaffs-infra
+        parameters:
+          serviceName:  "${{ parameters.serviceName }}"
+          dockerFile: "${{ parameters.dockerFile }}"
+
+
+
