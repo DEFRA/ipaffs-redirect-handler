@@ -1,0 +1,20 @@
+{
+  "name": "ipaffs-redirect-handler",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "author": "",
+  "license": "",
+  "description": "OAuth2 Redirect Handler for Microsoft Identity Platform",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DEFRA/ipaffs-redirect-handler"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "express": "^5.2.1"
+  }
+}
