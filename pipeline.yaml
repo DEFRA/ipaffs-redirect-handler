@@ -54,22 +54,12 @@ stages:
           - script: npm  ci
             displayName: 'Install dependencies and build'
 
-          - task: PublishPipelineArtifact@1
-            inputs:
-              artifact: 'service'
-              targetPath: '$(Build.SourcesDirectory)/service_artifact'
-            displayName: Install dependencies and build
+          - template: /pipelines/steps/build-container-image.yaml@ipaffs-infra
+            parameters:
+              dockerFile: ${{ variables.dockerFile }}
+              directory: .
+              imageName: ${{ variables.serviceName }}
 
-
-  - stage: PackageService
-    displayName: Package Service Image
-    dependsOn:
-      - BuildService
-    jobs:
-      - template: /pipelines/jobs/package-node-project.yaml@ipaffs-infra
-        parameters:
-          serviceName:  "${{ variables.serviceName }}"
-          dockerFile: "${{ variables.dockerFile }}"
 
 
 
