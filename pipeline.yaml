@@ -18,19 +18,8 @@ resources:
       name: DEFRA/ipaffs-infra
       ref: refs/heads/main
 
-parameters:
-  - name: environmentName
-    displayName: Environment
-    type: string
-    values:
-      - DEV
-      - TST
-      - PRE
-      - PRD
-    default: DEV
-
 variables:
-  - group: "${{ parameters.environmentName }}"
+  - group: "LowerEnvs"
   - name: serviceName
     value: redirect-handler
   - name: nodeVersion
