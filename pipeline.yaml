@@ -36,15 +36,30 @@ variables:
   - name: nodeVersion
     value: 24.13.1
   - name: dockerFile
-    value: service/Dockerfile
+    value: Dockerfile
 
 stages:
   - stage: BuildService
     displayName: Build Service
     jobs:
-      - template: /pipelines/jobs/build-node-project.yaml@ipaffs-infra
-        parameters:
-          nodeVersion: "${{ variables.nodeVersion }}"
+      - job: BuildNodeProject
+        displayName: Build Node Project
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: ${{ variables.nodeVersion }}
+              addToPath: true
+            displayName: Install Node and NPM and add to path
+
+          - script: npm  ci
+            displayName: 'Install dependencies and build'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              artifact: 'service'
+              targetPath: '$(Build.SourcesDirectory)/service_artifact'
+            displayName: Install dependencies and build
+
 
   - stage: PackageService
     displayName: Package Service Image

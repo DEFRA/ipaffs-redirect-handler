@@ -6,7 +6,7 @@ USER root
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
-COPY . /usr/src/app
+COPY service /usr/src/app
 
 RUN npm ci --only=production --ignore-scripts && \
     chown node /usr/src/app
