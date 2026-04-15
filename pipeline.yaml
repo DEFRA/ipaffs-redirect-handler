@@ -44,7 +44,7 @@ stages:
     jobs:
       - template: /pipelines/jobs/build-node-project.yaml@ipaffs-infra
         parameters:
-          nodeVersion: "${{ parameters.nodeVersion }}"
+          nodeVersion: "${{ variables.nodeVersion }}"
 
   - stage: PackageService
     displayName: Package Service Image
@@ -53,8 +53,8 @@ stages:
     jobs:
       - template: /pipelines/jobs/package-node-project.yaml@ipaffs-infra
         parameters:
-          serviceName:  "${{ parameters.serviceName }}"
-          dockerFile: "${{ parameters.dockerFile }}"
+          serviceName:  "${{ variables.serviceName }}"
+          dockerFile: "${{ variables.dockerFile }}"
 
 
 
