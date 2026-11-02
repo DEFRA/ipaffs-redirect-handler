@@ -27,6 +27,7 @@ function hiddenFields(fields) {
 
 app.get("/login", (req, res) => {
   let hostname =
+    process.env.HOST ||
     req.headers["x-forwarded-host"] ||
     req.headers["x-original-host"] ||
     req.headers["host"];
@@ -124,24 +125,28 @@ app.post("/return", (req, res) => {
   res.send(html);
 });
 
-const server = app.listen(PORT, () => {
-  console.log(
-    `ipaffs-redirect-handler ${version} is running on port ${PORT}`
-  );
-});
-
-function shutdown() {
-  console.log("Shutting down...");
-  server.close(() => {
-    process.exit(0);
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(
+      `ipaffs-redirect-handler ${version} is running on port ${PORT}`
+    );
   });
 
-  // Force shutdown after 5s
-  setTimeout(() => {
-    console.error("Forcibly shutting down");
-    process.exit(1);
-  }, 5000);
+  function shutdown() {
+    console.log("Shutting down...");
+    server.close(() => {
+      process.exit(0);
+    });
+
+    // Force shutdown after 5s
+    setTimeout(() => {
+      console.error("Forcibly shutting down");
+      process.exit(1);
+    }, 5000);
+  }
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+module.exports = app;
