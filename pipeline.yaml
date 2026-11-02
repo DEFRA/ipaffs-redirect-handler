@@ -41,8 +41,11 @@ stages:
               addToPath: true
             displayName: Install Node and NPM and add to path
 
-          - script: npm  ci
-            displayName: 'Install dependencies and build'
+          - script: npm ci
+            displayName: 'Install dependencies'
+
+          - script: npm test
+            displayName: 'Test redirect callback contract'
 
           - template: /pipelines/steps/build-container-image.yaml@ipaffs-infra
             parameters:
@@ -50,6 +53,78 @@ stages:
               directory: .
               imageName: ${{ variables.serviceName }}
 
+          - task: AzureCLI@2
+            displayName: Record published image digest
+            env:
+              IMAGE_ACR_NAME: $(acrName)
+              IMAGE_ACR_SUBSCRIPTION: $(subscriptionName)
+              IMAGE_REPOSITORY: ipaffs/redirect-handler
+              IMAGE_TAG: $(Build.BuildNumber)
+              IMAGE_SOURCE_COMMIT: $(Build.SourceVersion)
+              IMAGE_BUILD_ID: $(Build.BuildId)
+              IMAGE_ARTIFACT_DIRECTORY: $(Build.ArtifactStagingDirectory)/redirect-handler-image
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
 
+                registry_metadata="$(az acr show \
+                  --name "${IMAGE_ACR_NAME}" \
+                  --subscription "${IMAGE_ACR_SUBSCRIPTION}" \
+                  --query '{id:id,loginServer:loginServer}' \
+                  --output json --only-show-errors)"
+                image_digest="$(az acr repository show \
+                  --name "${IMAGE_ACR_NAME}" \
+                  --subscription "${IMAGE_ACR_SUBSCRIPTION}" \
+                  --image "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
+                  --query digest --output tsv --only-show-errors)"
 
+                IMAGE_REGISTRY_METADATA="${registry_metadata}" IMAGE_DIGEST="${image_digest}" python3 - <<'PY'
+                import json
+                import os
+                import re
+                from pathlib import Path
 
+                registry = json.loads(os.environ['IMAGE_REGISTRY_METADATA'])
+                digest = os.environ['IMAGE_DIGEST'].strip().lower()
+                source_registry = registry['id']
+                login_server = registry['loginServer'].lower()
+                source_commit = os.environ['IMAGE_SOURCE_COMMIT'].lower()
+                build_id = os.environ['IMAGE_BUILD_ID']
+                tag = os.environ['IMAGE_TAG']
+                if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+                    raise SystemExit('ACR returned an invalid image digest')
+                if not re.fullmatch(
+                    r'/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/'
+                    r'providers/Microsoft.ContainerRegistry/registries/[^/]+',
+                    source_registry, re.IGNORECASE,
+                ):
+                    raise SystemExit('ACR returned an invalid registry resource ID')
+                if not re.fullmatch(r'[a-z0-9][a-z0-9.-]*\.azurecr\.io', login_server):
+                    raise SystemExit('ACR returned an invalid registry hostname')
+                if not re.fullmatch(r'[0-9a-f]{40}', source_commit) or not build_id.isdigit():
+                    raise SystemExit('Pipeline source commit or build ID is invalid')
+                if not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}', tag):
+                    raise SystemExit('Pipeline build number is not a valid image tag')
+                artifact_directory = Path(os.environ['IMAGE_ARTIFACT_DIRECTORY'])
+                artifact_directory.mkdir(parents=True, exist_ok=True)
+                image = {
+                    'registry': login_server,
+                    'sourceRegistry': source_registry,
+                    'repository': os.environ['IMAGE_REPOSITORY'],
+                    'tag': tag,
+                    'digest': digest,
+                    'sourceCommit': source_commit,
+                    'buildId': int(build_id),
+                }
+                (artifact_directory / 'image.json').write_text(json.dumps(image, indent=2) + '\n')
+                print(f"Recorded {login_server}/{image['repository']}@{digest}")
+                PY
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish image provenance
+            inputs:
+              artifact: redirect-handler-image
+              targetPath: $(Build.ArtifactStagingDirectory)/redirect-handler-image
