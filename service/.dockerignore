@@ -1,0 +1,8 @@
+node_modules
+coverage
+public
+report.xml
+test
+test-results
+playwright-report
+.mocharc.json

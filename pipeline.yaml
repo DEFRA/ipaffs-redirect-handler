@@ -7,6 +7,7 @@ pr:
   branches:
     exclude:
       - '*'
+
 pool:
   name: 'DEFRA-COMMON-UBUNTU-SSV5'
 
@@ -18,38 +19,30 @@ resources:
       name: DEFRA/ipaffs-infra
       ref: refs/heads/main
 
+    - repository: ipaffs-manifest
+      type: github
+      endpoint: DEFRA
+      name: DEFRA/ipaffs-manifest
+      ref: refs/heads/master
+
 variables:
   - group: "DEV"
-  - group: "LowerEnvs"
   - name: serviceName
-    value: redirect-handler
+    value: ipaffs-redirect-handler
   - name: nodeVersion
     value: 24.13.1
   - name: dockerFile
-    value: Dockerfile
+    value: service/Dockerfile
+  - name: updateManifest
+    value: false
 
 stages:
-  - stage: BuildService
-    displayName: Build Service
-    jobs:
-      - job: BuildNodeProject
-        displayName: Build Node Project
-        steps:
-          - task: NodeTool@0
-            inputs:
-              versionSpec: ${{ variables.nodeVersion }}
-              addToPath: true
-            displayName: Install Node and NPM and add to path
-
-          - script: npm  ci
-            displayName: 'Install dependencies and build'
-
-          - template: /pipelines/steps/build-container-image.yaml@ipaffs-infra
-            parameters:
-              dockerFile: ${{ variables.dockerFile }}
-              directory: .
-              imageName: ${{ variables.serviceName }}
-
-
-
-
+  - template: /pipelines/templates/node-template.yaml@ipaffs-infra
+    parameters:
+      environmentName: "DEV"
+      nodeVersion: "${{ variables.nodeVersion }}"
+      serviceName: "${{ variables.serviceName }}"
+      dockerFile: "${{ variables.dockerFile }}"
+      runPlaywrightTests: true
+      sonarAnalysis: true
+      sonarReferenceBranch: master
